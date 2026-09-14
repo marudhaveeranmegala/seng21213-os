@@ -23,7 +23,13 @@
 
 #include "vga.h"
 #include "keyboard.h"
+#include <process.h>
 #include "../include/types.h"
+#include "interrupts.h"
+#include <process.h>
+#include <scheduler.h>
+#include "io.h"
+
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -248,9 +254,15 @@ static void shell_run(void) {
             continue;
         }
 
+
+       /* Process management command */
+       if (k_strcmp(cmd, "ps") == 0) {
+            process_list();
+            continue;
+        }
+
         /* Milestone stubs */
-        if (k_strcmp(cmd, "ps")      == 0 ||
-            k_strcmp(cmd, "kill")    == 0 ||
+       if (k_strcmp(cmd, "kill")    == 0 ||
             k_strcmp(cmd, "threads") == 0 ||
             k_strcmp(cmd, "free")    == 0 ||
             k_strcmp(cmd, "ls")      == 0 ||
@@ -270,12 +282,49 @@ static void shell_run(void) {
 /* ---------------------------------------------------------------------------
  * Kernel entry point - called from kernel_entry.asm
  * --------------------------------------------------------------------------*/
-void kernel_main(void) {
+
+
+static void process_a(void)
+{
+    while (1) {
+        vga_puts("A");
+        for (volatile int i = 0; i < 1000000; i++) {
+        }
+    }
+}
+
+static void process_b(void)
+{
+    while (1) {
+        vga_puts("B");
+        for (volatile int i = 0; i < 1000000; i++) {
+        }
+    }
+}
+
+
+
+void kernel_main(void)
+{
     vga_init();
-    kb_init();
     print_splash();
+
+    process_init();
+    scheduler_init();
+
+    create_process(process_a, "ProcessA");
+    create_process(process_b, "ProcessB");
+
+    idt_init();
+    pic_init();
+    pit_init();
+
+   __asm__ volatile ("sti");
+
+
     shell_run();
 
-    /* Should never reach here */
-    __asm__ __volatile__("hlt");
+    while (1) {
+        __asm__ volatile ("hlt");
+    }
 }

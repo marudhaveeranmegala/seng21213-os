@@ -3,3 +3,6 @@ seng21213-os.img
 *.o
 *.bin
 *.elf
+os.iso
+qemu.log
+qemu-debug.log

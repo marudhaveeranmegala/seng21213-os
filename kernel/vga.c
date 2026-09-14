@@ -75,7 +75,7 @@ void vga_clear(vga_color_t bg) {
     }
     cursor_row = 0;
     cursor_col = 0;
-    update_hw_cursor();
+/*    update_hw_cursor(); */
 }
 
 void vga_set_color(vga_color_t fg, vga_color_t bg) {
