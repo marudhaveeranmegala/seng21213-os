@@ -29,6 +29,7 @@
 #include <process.h>
 #include <scheduler.h>
 #include "io.h"
+#include <thread.h>
 
 
 /* ---------------------------------------------------------------------------
@@ -261,9 +262,16 @@ static void shell_run(void) {
             continue;
         }
 
+        if (k_strcmp(cmd, "threads") == 0) {
+            thread_list();
+            continue;
+         }
+
+
+
+
         /* Milestone stubs */
        if (k_strcmp(cmd, "kill")    == 0 ||
-            k_strcmp(cmd, "threads") == 0 ||
             k_strcmp(cmd, "free")    == 0 ||
             k_strcmp(cmd, "ls")      == 0 ||
             k_strcmp(cmd, "cat")     == 0) {
@@ -284,7 +292,7 @@ static void shell_run(void) {
  * --------------------------------------------------------------------------*/
 
 
-static void process_a(void)
+static void __attribute__((unused)) process_a(void)
 {
     while (1) {
         vga_puts("A");
@@ -293,7 +301,7 @@ static void process_a(void)
     }
 }
 
-static void process_b(void)
+static void __attribute__((unused)) process_b(void)
 {
     while (1) {
         vga_puts("B");
@@ -302,6 +310,27 @@ static void process_b(void)
     }
 }
 
+static void thread_a(void *arg)
+{
+    (void)arg;
+
+    while (1) {
+        vga_puts("T");
+        for (volatile int i = 0; i < 1000000; i++) {
+        }
+    }
+}
+
+static void thread_b(void *arg)
+{
+    (void)arg;
+
+    while (1) {
+        vga_puts("H");
+        for (volatile int i = 0; i < 1000000; i++) {
+        }
+    }
+}
 
 
 void kernel_main(void)
@@ -311,9 +340,16 @@ void kernel_main(void)
 
     process_init();
     scheduler_init();
+    thread_init();
 
-    create_process(process_a, "ProcessA");
-    create_process(process_b, "ProcessB");
+
+    thread_create(thread_a, 0, "ThreadA"); 
+    thread_create(thread_b, 0, "ThreadB"); 
+
+/* Stage 1 test processes temporarily disabled for Stage 2 testing */
+/* create_process(process_a, "ProcessA"); */
+/* create_process(process_b, "ProcessB"); */
+
 
     idt_init();
     pic_init();
