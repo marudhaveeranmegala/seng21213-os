@@ -30,7 +30,7 @@
 #include <scheduler.h>
 #include "io.h"
 #include <thread.h>
-
+#include "pmm.h"
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -199,18 +199,76 @@ static void cmd_colour(const char *args) {
     vga_set_color((vga_color_t)fg, (vga_color_t)bg);
     vga_puts("  Colour changed.\n");
 }
-static void cmd_mem(void) {
-    /* Stage 0 stub - students implement the real PMM in Lecture 11 */
-    vga_puts_color("\n  Memory Map (stub - implement PMM in Lecture 11)\n",
+
+static void cmd_mem(void)
+{
+    uint32_t total = pmm_total_memory();
+    uint32_t free = pmm_free_frames() * PMM_PAGE_SIZE;
+    uint32_t used = total - free;
+
+    vga_puts_color("\n  Physical Memory Information\n",
                    VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("  ---------------------------------------------\n");
-    vga_puts("  0x00000000 - 0x000FFFFF  :  First 1 MB (reserved/BIOS)\n");
-    vga_puts("  0x00100000 - 0x00EFFFFF  :  Extended memory (usable ~14 MB)\n");
-    vga_puts("  0x00F00000 - 0x00FFFFFF  :  BIOS / ROM area\n");
-    vga_puts("  0xB8000    - 0xBFFFF     :  VGA frame buffer\n");
-    vga_puts_color("\n  TODO: Use BIOS int 0x15, EAX=0xE820 to get real memory map\n\n",
-                   VGA_YELLOW, VGA_BLACK);
+    vga_puts("  ----------------------------\n");
+
+    vga_puts("  Total Memory : ");
+    vga_put_uint(total / (1024 * 1024));
+    vga_puts(" MB\n");
+
+    vga_puts("  Used Memory  : ");
+    vga_put_uint(used / (1024 * 1024));
+    vga_puts(" MB\n");
+
+    vga_puts("  Free Memory  : ");
+    vga_put_uint(free / (1024 * 1024));
+    vga_puts(" MB\n\n");
 }
+
+static void cmd_pmmtest(void)
+{
+    uint32_t frames[100];
+    uint32_t before = pmm_free_frames();
+    int allocated = 0;
+
+    vga_puts("\n  PMM 100-Frame Test\n");
+    vga_puts("  ------------------\n");
+
+    /* Allocate 100 physical frames. */
+    for (int i = 0; i < 100; i++) {
+        frames[i] = pmm_alloc_frame();
+
+        if (frames[i] == 0) {
+            vga_puts_color("  FAIL: Could not allocate frame.\n",
+                           VGA_LIGHT_RED, VGA_BLACK);
+            return;
+        }
+
+        allocated++;
+    }
+
+    vga_puts("  Allocated 100 frames successfully.\n");
+
+    /* Free all 100 frames. */
+    for (int i = 0; i < 100; i++) {
+        pmm_free_frame(frames[i]);
+    }
+
+    uint32_t after = pmm_free_frames();
+
+    if (allocated == 100 && after == before) {
+        vga_puts_color("  PASS: All 100 frames freed. No leak.\n",
+                       VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("  FAIL: Memory leak detected.\n",
+                       VGA_LIGHT_RED, VGA_BLACK);
+    }
+
+    vga_puts("\n");
+}
+
+
+
+
+
 static void cmd_halt(void) {
     vga_puts_color("\n  System halted.\n", VGA_LIGHT_RED, VGA_BLACK);
 
@@ -243,7 +301,7 @@ static void shell_run(void) {
         if (k_strcmp(cmd, "help")  == 0) { cmd_help();  continue; }
         if (k_strcmp(cmd, "clear") == 0) { cmd_clear(); continue; }
         if (k_strcmp(cmd, "about") == 0) { cmd_about(); continue;}
-        if (k_strcmp(cmd, "mem") == 0) { cmd_mem(); continue; }
+        if (k_strcmp(cmd, "meminfo") == 0) { cmd_mem(); continue; }
         if (k_strcmp(cmd, "halt") == 0) { cmd_halt(); continue; }
         if (k_strcmp(cmd, "version") == 0) { cmd_version(); continue; }
         if (k_strncmp(cmd, "colour ", 7) == 0) {
@@ -267,6 +325,10 @@ static void shell_run(void) {
             continue;
          }
 
+         if (k_strcmp(cmd, "pmmtest") == 0) {
+            cmd_pmmtest();
+            continue;
+         }
 
 
 
@@ -310,7 +372,7 @@ static void __attribute__((unused)) process_b(void)
     }
 }
 
-static void thread_a(void *arg)
+static void __attribute__((unused)) thread_a(void *arg)
 {
     (void)arg;
 
@@ -321,7 +383,7 @@ static void thread_a(void *arg)
     }
 }
 
-static void thread_b(void *arg)
+static void __attribute__((unused)) thread_b(void *arg)
 {
     (void)arg;
 
@@ -333,9 +395,12 @@ static void thread_b(void *arg)
 }
 
 
-void kernel_main(void)
+void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info)
 {
+    (void)multiboot_magic;
+
     vga_init();
+    pmm_init(multiboot_info);
     print_splash();
 
     process_init();
@@ -343,8 +408,8 @@ void kernel_main(void)
     thread_init();
 
 
-    thread_create(thread_a, 0, "ThreadA"); 
-    thread_create(thread_b, 0, "ThreadB"); 
+/*    thread_create(thread_a, 0, "ThreadA"); */
+/*    thread_create(thread_b, 0, "ThreadB"); */
 
 /* Stage 1 test processes temporarily disabled for Stage 2 testing */
 /* create_process(process_a, "ProcessA"); */

@@ -18,7 +18,13 @@ section .multiboot
  _start:
     cli
 
-    mov esp, stack_top
+    ; GRUB provides Multiboot information:
+    ; EAX = Multiboot magic number
+    ; EBX = address of Multiboot information structure
+    mov [multiboot_magic], eax
+    mov [multiboot_info], ebx
+
+     mov esp, stack_top
 
     ; Write "BOOT" directly to VGA memory.
     ; This happens before calling the C kernel.
@@ -27,7 +33,12 @@ section .multiboot
     mov word [0xB8004], 0x0F4F
     mov word [0xB8006], 0x0F54
 
-   call kernel_main
+    push dword [multiboot_info]
+    push dword [multiboot_magic]
+    call kernel_main
+    add esp, 8
+
+
 
 
   .hang:
@@ -42,6 +53,14 @@ section .multiboot
 
 section .bss
 align 16
+
+multiboot_magic:
+    resd 1
+
+multiboot_info:
+    resd 1
+
+
 stack_bottom:
     resb 16384
 stack_top:

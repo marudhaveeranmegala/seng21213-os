@@ -135,6 +135,11 @@ static void print_uint(uint32_t n, int base) {
     while (i > 0) vga_putchar(buf[--i]);
 }
 
+void vga_put_uint(uint32_t n)
+{
+    print_uint(n, 10);
+}
+
 void vga_printf(const char *fmt, ...) {
     /* Minimal va_args via GCC __builtin_va_list */
     __builtin_va_list args;
