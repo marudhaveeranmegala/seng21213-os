@@ -31,6 +31,8 @@
 #include "io.h"
 #include <thread.h>
 #include "pmm.h"
+#include "ramdisk.h"
+#include "fs.h"
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -313,6 +315,97 @@ static void shell_run(void) {
             continue;
         }
 
+    if (k_strncmp(cmd, "touch ", 6) == 0) {
+    const char *filename = k_ltrim(cmd + 6);
+
+    int fd = fs_open(filename, 1);
+
+    if (fd >= 0) {
+        fs_close(fd);
+
+        vga_puts("File created: ");
+        vga_puts(filename);
+        vga_puts("\n");
+    } else {
+        vga_puts("Error: could not create file.\n");
+    }
+
+    continue;
+}
+
+
+
+
+if (k_strncmp(cmd, "write ", 6) == 0) {
+    char filename[28];
+    const char *args = k_ltrim(cmd + 6);
+
+    uint32_t i = 0;
+
+    /* Copy filename */
+    while (args[i] != '\0' && args[i] != ' ' && i < sizeof(filename) - 1) {
+        filename[i] = args[i];
+        i++;
+    }
+    filename[i] = '\0';
+
+    /* Skip spaces between filename and text */
+    while (args[i] == ' ') {
+        i++;
+    }
+
+    const char *text = args + i;
+
+    int fd = fs_open(filename, 1);
+
+    if (fd < 0) {
+        vga_puts("Error: could not open file.\n");
+        continue;
+    }
+
+    int written = fs_write(fd, text, k_strlen(text));
+    fs_close(fd);
+
+    if (written >= 0) {
+        vga_puts("Data written to ");
+        vga_puts(filename);
+        vga_puts("\n");
+    } else {
+        vga_puts("Error: could not write to file.\n");
+    }
+
+    continue;
+}
+
+if (k_strncmp(cmd, "cat ", 4) == 0) {
+    const char *filename = k_ltrim(cmd + 4);
+
+    char buffer[4096];
+    int fd = fs_open(filename, 0);
+
+    if (fd < 0) {
+        vga_puts("Error: file not found.\n");
+        continue;
+    }
+
+    int bytes_read = fs_read(fd, buffer, sizeof(buffer) - 1);
+    fs_close(fd);
+
+    if (bytes_read < 0) {
+        vga_puts("Error: could not read file.\n");
+        continue;
+    }
+
+    buffer[bytes_read] = '\0';
+
+    vga_puts(buffer);
+    vga_puts("\n");
+
+    continue;
+}
+
+
+
 
        /* Process management command */
        if (k_strcmp(cmd, "ps") == 0) {
@@ -330,13 +423,29 @@ static void shell_run(void) {
             continue;
          }
 
+         /* File system commands */
+          if (k_strcmp(cmd, "ls") == 0) {
+            fs_list();
+            continue;
+          }
+  if (k_strncmp(cmd, "rm ", 3) == 0) {
+    const char *filename = k_ltrim(cmd + 3);
 
+    if (fs_unlink(filename) == 0) {
+        vga_puts("File deleted: ");
+        vga_puts(filename);
+        vga_puts("\n");
+    } else {
+        vga_puts("Error: could not delete file.\n");
+    }
+
+    continue;
+  }
 
         /* Milestone stubs */
        if (k_strcmp(cmd, "kill")    == 0 ||
             k_strcmp(cmd, "free")    == 0 ||
-            k_strcmp(cmd, "ls")      == 0 ||
-            k_strcmp(cmd, "cat")     == 0) {
+            k_strcmp(cmd, "ls")      == 0 ){
             vga_puts_color("  [TODO] This command is not yet implemented.\n",
                            VGA_YELLOW, VGA_BLACK);
             vga_puts("  Implement it as part of your lecture assignment.\n");
@@ -401,6 +510,8 @@ void kernel_main(uint32_t multiboot_magic, uint32_t multiboot_info)
 
     vga_init();
     pmm_init(multiboot_info);
+    ramdisk_init();
+    fs_init();
     print_splash();
 
     process_init();

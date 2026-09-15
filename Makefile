@@ -39,7 +39,9 @@ KERN_SRCS := \
     $(KERN_DIR)/thread.c \
     $(KERN_DIR)/mutex.c  \
     $(KERN_DIR)/semaphore.c \
-    $(KERN_DIR)/pmm.c
+    $(KERN_DIR)/pmm.c \
+    $(KERN_DIR)/ramdisk.c \
+    $(KERN_DIR)/fs.c
 
 
 KERN_OBJS := $(patsubst $(KERN_DIR)/%.c, $(BUILD)/kernel/%.o, $(KERN_SRCS))
